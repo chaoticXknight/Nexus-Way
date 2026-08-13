@@ -1,0 +1,58 @@
+<!doctype html>
+<!-- Owns signup form structure and legal attestations. signup.js owns behavior; hive.js owns crypto and requests. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Create account — NEXUS-WAY Connect</title>
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">NEXUS-WAY</div>
+    <h1>Create your Connect account</h1>
+
+    <form class="card" id="form">
+      <label for="invite">Invite code</label>
+      <input type="text" id="invite" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="from the operator">
+      <div class="status" id="invite-status"></div>
+
+      <label for="handle">Handle</label>
+      <input type="text" id="handle" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="yourname">
+
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="new-password">
+
+      <label for="confirm">Confirm password</label>
+      <input type="password" id="confirm" autocomplete="new-password">
+
+      <div class="check">
+        <input type="checkbox" id="age">
+        <label for="age">I confirm I am 18 years of age or older.</label>
+      </div>
+
+      <div class="check">
+        <input type="checkbox" id="agree">
+        <label for="agree">I agree to the <a href="/legal/terms">Terms</a> and <a href="/legal/privacy">Privacy Policy</a>.</label>
+      </div>
+
+      <button class="btn" id="go" type="submit">Create account</button>
+      <div class="error" id="err"></div>
+      <div class="status" id="status"></div>
+    </form>
+
+    <div class="note">
+      <strong>Write your password down.</strong> There is no email on file and
+      no password reset — it protects the keys to your account, and we can't
+      recover it for you.
+    </div>
+
+    <p class="alt">Already have an account? <a href="login.html">Sign in</a></p>
+  </div>
+
+  <footer><a href="/legal/terms">Terms</a> · <a href="/legal/privacy">Privacy</a></footer>
+
+  <script src="vendor/argon2.umd.min.js"></script>
+  <script type="module" src="signup.js?v=20260719-invitelink"></script>
+</body>
+</html>

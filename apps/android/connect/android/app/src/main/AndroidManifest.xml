@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <permission
+        android:name="com.nexusway.connect.permission.NOTIFICATION_RELAY"
+        android:protectionLevel="signature" />
+
+    <queries>
+        <package android:name="com.nexusway.notify" />
+    </queries>
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="com.nexusway.connect.permission.NOTIFICATION_RELAY" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- In-app updates: installed through a PackageInstaller session. The
+         first update shows the one system confirmation; after that Connect
+         is the installer of record and updates apply silently (API 31+). -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION" />
+
+    <!-- The camera remains optional; text, voice, and photo capture work without it. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+
+    <application
+        android:name=".ConnectApplication"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        android:label="Nexus Connect"
+        android:icon="@mipmap/ic_nexus_connect"
+        android:roundIcon="@mipmap/ic_nexus_connect"
+        android:theme="@style/Theme.NexusConnect"
+        android:usesCleartextTraffic="false">
+        <receiver
+            android:name=".NotificationRelayReceiver"
+            android:exported="true"
+            android:permission="com.nexusway.connect.permission.NOTIFICATION_RELAY">
+            <intent-filter>
+                <action android:name="com.nexusway.connect.NOTIFICATION_RELAY_FRAME" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".UpdateResultReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.nexusway.connect.INSTALL_RESULT" />
+            </intent-filter>
+        </receiver>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

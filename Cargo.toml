@@ -1,0 +1,16 @@
+[workspace]
+resolver = "2"
+members = [
+    "packages/rust/nexus-common",
+    "packages/rust/hive-client",
+    "services/hive/server",
+]
+
+[workspace.package]
+rust-version = "1.92"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true

@@ -1,0 +1,207 @@
+NEXUS-WAY CONNECT — FOUNDING-MEMBER BETA TERMS OF SERVICE
+Last updated: 2026-07-31
+
+Nexus-Way Connect ("Connect", "the service") is a small, invite-only,
+ad-free social service operated by its founder ("the operator", "we",
+"us"). It is in a private BETA offered to a hand-picked group of friends
+and family ("Founding Members"). By creating an account or using the
+service, you agree to these Terms. If you do not agree, do not use the
+service.
+
+These Terms govern the beta only. A separate, fuller Terms of Service will
+apply when the service opens to the public.
+
+1. WHO CAN USE IT (ELIGIBILITY)
+   - You must be 18 years of age or older. By creating an account you
+     confirm you are at least 18. We do not knowingly permit anyone under
+     18; accounts we learn belong to someone under 18 will be removed.
+   - Access is by invitation only during the beta.
+   - The service is offered in the United States only. Do not use it from
+     outside the U.S.
+   - The operator may decline, suspend, or revoke access at any time during
+     the beta.
+
+2. WHAT THIS BETA IS
+   Connect is chronological and follower-based: your feed shows posts from
+   the accounts you follow, in time order. There is no engagement
+   algorithm, no advertising, no behavioral tracking, no data mining, and
+   no sale of your data. The beta is provided FREE OF CHARGE. It is
+   pre-release software and may change, break, or lose data.
+
+3. FOUNDING MEMBER STATUS
+   - As an invited beta user, you are a "Founding Member."
+   - The operator intends to keep Founding-Member accounts free for the
+     lifetime of the service — that is, for as long as the operator runs
+     the Connect servers. If the servers are permanently shut down, the
+     service (and this free-access commitment) ends; see Section 10.
+   - Founding-Member status is personal to your account and is NOT
+     transferable to another person or account.
+   - You can LOSE Founding-Member status (and your account) if you violate
+     these Terms or the Community Guidelines, break the law on the
+     platform, or delete your own account. Loss of the account ends the
+     free-access commitment for that account.
+
+4. YOUR CONTENT AND LICENSE
+   You own what you post. By posting, you grant the operator only the
+   limited, non-exclusive technical license needed to store, process, and
+   deliver your content to the audience you chose (public, followers, or a
+   member-only "Fold"), and to make operational backups. We claim no other
+   rights: no advertising use, no resale, no licensing to third parties,
+   and no use of your content to train AI models. This license ends when
+   you delete the content or your account, except for content retained
+   under Section 6 (Illegal Activity) or as otherwise required by law.
+
+   Your HANDLE is chosen by you and is PUBLIC. Anything you put in your
+   handle, display name, bio, or public posts is visible to others by your
+   own choice — including a real name, if you choose to use one. Do not put
+   information in public fields that you want kept private.
+
+5. ACCEPTABLE USE
+   You may not use the service to post, store, share, or transmit:
+   - Content that is illegal under United States law, including child
+     sexual abuse material ("CSAM");
+   - Any sexual content involving minors, real or simulated;
+   - Harassment, stalking, credible threats, or incitement of violence;
+   - Content that promotes terrorism or facilitates serious crime;
+   - Other people's private or identifying information without their
+     consent ("doxxing");
+   - Spam, malware, or attempts to breach, overload, or circumvent the
+     security of the service or other users' accounts;
+   - Content that infringes another person's copyright, trademark, or
+     other intellectual-property or privacy rights;
+   - Impersonation of another person or entity intended to deceive.
+   The Community Guidelines are part of these Terms and describe these
+   rules and how they are enforced. You are solely responsible for the
+   content you post and the activity on your account.
+
+6. ILLEGAL ACTIVITY — PRESERVATION AND FORFEITURE OF YOUR DATA
+   The service is designed to minimize what we keep and to let you delete
+   your data (see Section 10). That protection does NOT apply when your
+   account is used for illegal activity.
+   If the operator determines in good faith that your account has been
+   used for activity that is illegal under United States law, or that
+   seriously violates Section 5, you FORFEIT the data-minimization and
+   deletion protections described in these Terms and our Privacy Policy
+   with respect to the account(s) involved. In that event the operator
+   may, without further notice to you:
+   - freeze and PRESERVE the entire footprint of the affected account(s) —
+     including posts, comments, media, profile, follow and block
+     relationships, and device, session, and IP address history — even if
+     you attempt to delete that content or your account. While a
+     preservation hold is in effect, "delete" becomes a preserved
+     tombstone, not erasure, and the data is held outside the normal
+     retention window;
+   - retain the preserved data for as long as is necessary to investigate,
+     to comply with the law, to cooperate with lawful requests, and to
+     establish, exercise, or defend legal claims; and
+   - disclose the preserved data to law enforcement and other lawful
+     authorities, and — for CSAM — report it to the National Center for
+     Missing & Exploited Children ("NCMEC") as required by 18 U.S.C.
+     §2258A.
+   This forfeiture is limited to the account(s) involved and to the
+   purposes stated above. It overrides your right to delete your data for
+   those accounts for as long as a preservation hold remains in effect.
+
+7. MODERATION AND REPORTS
+   Any user may report content or accounts, with a reason. Reports are
+   reviewed by the operator, and all moderation actions are logged. We may
+   hide, remove, or restrict content, and warn, suspend, or terminate
+   accounts, that violate these Terms or the Community Guidelines. Certain
+   content (for example, content reported as CSAM) may be hidden
+   immediately, pending review. There is no automated or algorithmic
+   amplification; feeds are strictly chronological. You may also block
+   other accounts and control who can see and comment on your posts.
+   Moderation during the beta is performed by the operator, and response
+   times are best-effort.
+
+8. YOUR ACCOUNT, KEYS, AND RECOVERY
+   Your identity is a cryptographic key pair generated on your device; the
+   operator never holds your private keys and cannot access your encrypted
+   content. Account recovery works ONLY if you set it up in advance:
+   - If you set a recovery password, an encrypted recovery bundle is stored
+     on the server (we hold ciphertext only and cannot read it); you can
+     recover your account with that password.
+   - You can also add and link additional devices while you still have one
+     enrolled device.
+   IMPORTANT — RISK OF PERMANENT LOSS: If you do NOT set a recovery password
+   AND you lose access to all of your enrolled devices, your account and its
+   contents CANNOT be recovered by anyone, including the operator, and are
+   permanently lost. You are solely responsible for setting up recovery and
+   keeping your devices and recovery password safe. The operator is NOT
+   responsible for any loss of your account or data resulting from your
+   failure to set up or safeguard recovery.
+
+9. FEES
+   The beta is FREE. The operator does not charge Founding Members during
+   the beta. After the beta, the operator plans to offer the service to the
+   public for a subscription fee; those paid terms, billing practices, and
+   any renewal and cancellation rules will be presented separately and will
+   not apply to Founding Members' free access as described in Section 3.
+
+10. TERMINATION, DELETION, AND SHUTDOWN
+   - You may delete your account at any time from within the app. Deletion
+     removes your content and profile from the server, subject to Section 6
+     and to limited moderation/legal records we are required to retain.
+   - The operator may suspend or terminate accounts that violate these
+     Terms or the Community Guidelines, and may discontinue the beta.
+   - SHUTDOWN: If the operator decides to permanently shut the service
+     down, the operator will give notice in the app and provide a grace
+     period of at least three (3) months during which you can export and
+     back up your data to your own devices. After the grace period ends,
+     accounts and their data will be deleted from the server. Because we
+     collect no email or phone number, all such notices are delivered IN
+     THE APP; it is your responsibility to open the app during the grace
+     period.
+
+11. PRIVACY
+   Our handling of your information is described in the Privacy Policy,
+   which is part of these Terms. In short: we collect the minimum needed to
+   run the service (a handle, your public keys, your content, and security
+   metadata such as device info and IP address), we do not sell or share
+   your data or use it for ads, and we delete connection metadata on a
+   rolling basis — except where Section 6 or the law requires otherwise.
+
+12. BETA DISCLAIMERS
+   THIS IS PRE-RELEASE BETA SOFTWARE PROVIDED "AS IS" AND "AS AVAILABLE",
+   WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+   We do not warrant that the service will be uninterrupted, secure, or
+   error-free, or that data will not be lost. You use the beta at your own
+   risk.
+
+13. LIMITATION OF LIABILITY
+   To the maximum extent permitted by law, the operator is not liable for
+   any indirect, incidental, special, consequential, or punitive damages,
+   or for any loss of data, profits, or goodwill, arising from or related
+   to your use of the beta. Because the beta is provided free of charge,
+   the operator's total liability to you for any claim will not exceed one
+   hundred U.S. dollars ($100).
+
+14. INDEMNIFICATION
+   You agree to indemnify and hold the operator harmless from claims,
+   damages, and expenses (including reasonable legal fees) arising from
+   your content, your use of the service, or your violation of these Terms,
+   the Community Guidelines, or any law or third-party right.
+
+15. GOVERNING LAW
+   These Terms are governed by the laws of the State of Texas and
+   applicable U.S. federal law, without regard to conflict-of-laws rules.
+   [Venue and any dispute-resolution terms to be finalized on advice of
+   counsel before public launch.]
+
+16. CHANGES
+   These Terms may change during the beta. Material changes will be
+   announced in the app before they take effect, and the app will ask
+   you to review and accept the updated Terms before you continue using
+   the service; continuing to use the service after a change takes
+   effect means you accept the updated Terms.
+
+17. CONTACT
+   Contact the operator directly (you were invited by them or by someone
+   they vouched for) for any questions, legal notices, copyright
+   complaints, or safety concerns.
+
+---
+NOTE (not part of the agreement): This is a working draft prepared by the
+operator for a private friends-and-family beta. It is not legal advice and
+should be reviewed by a licensed attorney before the public launch.

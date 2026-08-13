@@ -1,0 +1,139 @@
+NEXUS-WAY CONNECT — COMMUNITY GUIDELINES
+Last updated: 2026-07-31
+
+Connect is a small, ad-free, chronological space. There is no algorithm
+deciding what you see — just the people you follow, in time order. These
+Guidelines are part of the Terms of Service. They explain what is and isn't
+allowed, and how we handle it. Keep it decent and keep it legal.
+
+--------------------------------------------------------------------------
+1. WHO CAN BE HERE
+--------------------------------------------------------------------------
+- You must be 18 or older.
+- During the beta, access is by invitation only.
+- Connect is offered in the United States only.
+If we learn an account belongs to someone under 18, we remove it. A parent or
+guardian who cannot remove a minor's account themselves can contact the
+operator (Section 8) to have it removed.
+
+--------------------------------------------------------------------------
+2. WHAT'S NOT ALLOWED
+--------------------------------------------------------------------------
+Do not post, share, store, or send:
+
+  ILLEGAL CONTENT
+  - Anything illegal under U.S. law.
+  - CHILD SEXUAL ABUSE MATERIAL (CSAM) or any sexual content involving
+    minors, real or simulated. Zero tolerance. See Section 6.
+
+  HARM TO PEOPLE
+  - Harassment, bullying, stalking, or targeted abuse.
+  - Credible threats of violence, or incitement of violence.
+  - Content that promotes terrorism or facilitates serious crime.
+  - Encouraging suicide or self-harm.
+
+  PRIVACY VIOLATIONS
+  - Other people's private or identifying information without their
+    consent ("doxxing").
+  - Non-consensual intimate imagery.
+
+  DECEPTION & ABUSE OF THE PLATFORM
+  - Impersonating another person or entity to deceive.
+  - Spam, scams, or bulk unsolicited messaging.
+  - Malware, or attempts to break, overload, or bypass the security of the
+    service or other people's accounts.
+
+  INTELLECTUAL PROPERTY
+  - Content that infringes someone else's copyright or trademark. See
+    Section 7 for how copyright complaints work.
+
+--------------------------------------------------------------------------
+3. YOUR CONTROLS
+--------------------------------------------------------------------------
+You are not at the mercy of an algorithm here. You can:
+  - Choose each post's audience: public, followers, or a member-only "Fold."
+  - Approve or decline followers.
+  - Block anyone — a block hides you and them from each other, both ways.
+  - Control who may comment on your posts.
+Use these first. Blocking is often the fastest fix for someone you simply
+don't want to interact with.
+
+--------------------------------------------------------------------------
+4. REPORTING
+--------------------------------------------------------------------------
+Anyone can report a post, comment, or account, with a reason. Reports go to
+the operator for review. Reporting is not a popularity vote — content is
+judged against these Guidelines, not by how many reports it gets. Please
+don't file false or retaliatory reports; abusing the report system is itself
+a violation.
+
+--------------------------------------------------------------------------
+5. HOW ENFORCEMENT WORKS
+--------------------------------------------------------------------------
+During the beta the operator personally reviews reports. Depending on
+severity, we may:
+  - leave the content up (no violation);
+  - remove or hide the content;
+  - warn the account;
+  - suspend the account; or
+  - permanently terminate the account.
+Serious content — for example, anything reported as CSAM — may be hidden
+immediately, before review, to protect the community.
+
+When an account is used for ILLEGAL activity, it forfeits the normal privacy
+and deletion protections: its content and account data (including device and
+IP history) are preserved and may be turned over to law enforcement, as
+described in the Terms of Service (Illegal Activity section). You cannot
+delete your way out of an active preservation hold.
+
+Moderation actions are logged. Response times during the beta are
+best-effort — it's a very small operation.
+
+--------------------------------------------------------------------------
+6. CHILD SAFETY (CSAM) — ZERO TOLERANCE
+--------------------------------------------------------------------------
+CSAM and any sexualization of minors are absolutely prohibited. When we
+become aware of such content, we:
+  - immediately hide it from everyone;
+  - preserve it and the associated account data as required by law; and
+  - report it to the National Center for Missing & Exploited Children
+    (NCMEC), as required by 18 U.S.C. §2258A.
+We do not "investigate" or circulate such material; we preserve and report
+it. Accounts involved are terminated.
+
+--------------------------------------------------------------------------
+7. COPYRIGHT (DMCA)
+--------------------------------------------------------------------------
+Connect respects intellectual-property rights and expects you to as well.
+  - If you believe content on Connect infringes your copyright, send a notice
+    to the operator (Section 8) identifying the work and the content at issue,
+    with a statement of good-faith belief and your contact information.
+  - We will review valid notices and may hide the content pending resolution.
+  - REPEAT INFRINGERS: accounts that repeatedly infringe are subject to a
+    three-strike policy, with account termination on the third strike.
+  - COUNTER-NOTICE: if you believe your content was removed by mistake or
+    misidentification, you may submit a counter-notice. If you do, the content
+    may be restored unless the complainant pursues the matter further, as
+    provided under the DMCA.
+(The formal designated-agent contact and full notice/counter-notice procedure
+will be published before public launch.)
+
+--------------------------------------------------------------------------
+8. APPEALS & CONTACT
+--------------------------------------------------------------------------
+If you believe a moderation decision was wrong, you can appeal by contacting
+the operator directly. During the beta this is handled personally and
+out-of-band. Parents/guardians and copyright holders can use the same contact
+channel. (A published contact address will accompany the public launch.)
+
+--------------------------------------------------------------------------
+9. THE SHORT VERSION
+--------------------------------------------------------------------------
+Be a real person. Don't hurt people. Don't break the law. Don't post other
+people's private stuff or someone else's work as your own. Use blocks and
+audience controls freely. If something's wrong, report it. That's it.
+
+---
+NOTE (not part of the Guidelines): This is a working draft for a private
+friends-and-family beta. It is not legal advice and should be reviewed by a
+licensed attorney before the public launch.

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hex-nut "N" mark placeholder until real branding lands. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#41C9E2"
+        android:pathData="M54,24 L79,38.5 L79,67.5 L54,82 L29,67.5 L29,38.5 Z" />
+    <path
+        android:fillColor="#0E1116"
+        android:pathData="M44,66 L44,42 L49,42 L60,58.5 L60,42 L64,42 L64,66 L59,66 L48,49.5 L48,66 Z" />
+</vector>

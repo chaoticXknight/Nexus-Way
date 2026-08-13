@@ -1,0 +1,58 @@
+# Rust
+/target/
+
+# Android / Gradle
+**/build/
+**/.gradle/
+**/.kotlin/
+**/local.properties
+
+# Native Android output
+**/.cxx/
+**/jniLibs/*.so
+**/jniLibs/**/*.so
+
+# Release artifacts and caches
+/artifacts/
+/.build/
+**/release-*/
+
+# IDE and OS noise
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Logs and local configuration
+*.log
+nohup.out
+**/hive.toml
+**/server_key
+**/tls/
+**/backup.env
+**/.cloudflared/
+credentials*.json
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+*.keystore
+keystore.properties
+local.properties
+*.env
+.env.*
+!*.env.example
+
+# Runtime data and application packages
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.apk
+*.aab
+
+# Large generated files
+*.img
+*.zip

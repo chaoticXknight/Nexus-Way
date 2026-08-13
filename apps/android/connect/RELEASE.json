@@ -1,0 +1,12 @@
+{
+  "version": "0.2.50",
+  "severity": "normal",
+  "title": "Messaging and Fold Activity",
+  "notes": [
+    "Long-press conversations to select and delete multiple synchronized conversation histories at once.",
+    "Fixes Fold likes and encrypted comments, including honest comment error handling that preserves unsent drafts.",
+    "Supports tagging canonical handles that contain spaces, including quoted mentions when needed.",
+    "Fold post, comment, reaction, invitation, and join notifications now open the relevant Fold activity.",
+    "Nexus Notify now updates automatically alongside Connect and restarts its notification relay after replacement."
+  ]
+}

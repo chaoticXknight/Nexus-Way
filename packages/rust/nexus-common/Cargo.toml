@@ -1,0 +1,6 @@
+[package]
+name = "nexus-common"
+version = "0.1.0"
+edition = "2021"
+rust-version.workspace = true
+description = "Strict Base64 encoding shared by the HIVE server and protocol client"

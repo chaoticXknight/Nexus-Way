@@ -1,0 +1,41 @@
+<!doctype html>
+<!-- Owns sign-in form structure. login.js owns interaction; hive.js recovers keys and enrolls the browser. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in — NEXUS-WAY Connect</title>
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">NEXUS-WAY</div>
+    <h1>Sign in</h1>
+
+    <form class="card" id="form">
+      <label for="handle">Handle</label>
+      <input type="text" id="handle" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="yourname">
+
+      <label for="password">Password</label>
+      <input type="password" id="password" autocomplete="current-password">
+
+      <button class="btn" id="go" type="submit">Sign in</button>
+      <div class="error" id="err"></div>
+      <div class="status" id="status"></div>
+    </form>
+
+    <div class="note">
+      Signing in here adds a “Web browser” device to your account so this
+      page can prove it's you. You can revoke it any time in the app under
+      Settings → Devices.
+    </div>
+
+    <p class="alt">No account yet? <a href="signup.html">Create one</a></p>
+  </div>
+
+  <footer><a href="/legal/terms">Terms</a> · <a href="/legal/privacy">Privacy</a></footer>
+
+  <script src="vendor/argon2.umd.min.js"></script>
+  <script type="module" src="login.js"></script>
+</body>
+</html>

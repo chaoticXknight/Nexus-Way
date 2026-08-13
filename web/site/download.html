@@ -1,0 +1,40 @@
+<!doctype html>
+<!-- Owns the authenticated APK-download page structure. download.js owns session checks and ticket navigation. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Download — NEXUS-WAY Connect</title>
+  <link rel="stylesheet" href="site.css">
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">NEXUS-WAY</div>
+    <h1 id="hello">You're in.</h1>
+
+    <div class="card">
+      <button class="btn btn-top0" id="dl">⬇ Download Connect for Android</button>
+      <div class="error" id="err"></div>
+      <div class="status" id="status"></div>
+
+      <ol class="steps">
+        <li>Open the downloaded <strong>nexus-connect.apk</strong> on your phone.</li>
+        <li>Android will ask you to allow installs from your browser — allow it (beta builds aren't on the Play Store).</li>
+        <li>Open the app, choose <strong>Sign in</strong>, and use the same handle and password you just created.</li>
+      </ol>
+    </div>
+
+    <div class="note">
+      On a computer? Open this page on your phone instead and tap
+      <strong>Sign in</strong> — your account already exists, so you can log
+      in and download straight to the phone.
+    </div>
+
+    <p class="alt"><a href="index.html">Back to start</a></p>
+  </div>
+
+  <footer><a href="/legal/terms">Terms</a> · <a href="/legal/privacy">Privacy</a></footer>
+
+  <script type="module" src="download.js?v=20260719-ticketdownload"></script>
+</body>
+</html>

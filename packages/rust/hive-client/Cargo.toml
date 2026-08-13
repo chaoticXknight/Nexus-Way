@@ -1,0 +1,20 @@
+[package]
+name = "hive-client"
+version = "0.1.0"
+edition = "2021"
+rust-version.workspace = true
+description = "Shared HIVE client library — server pinning, auth, stream demux, blob chunking. Embedded by VAULT, WIRE, and CONNECT; also drives the integration test harness."
+
+[dependencies]
+nexus-common = { path = "../nexus-common" }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+rustls = { version = "0.23", default-features = false, features = ["ring"] }
+tokio = { version = "1", features = ["rt", "macros"] }
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand = "0.8"
+sha2 = "0.10"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"

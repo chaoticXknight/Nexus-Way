@@ -1,0 +1,124 @@
+NEXUS-WAY CONNECT — PRIVACY POLICY (Beta)
+Last updated: 2026-07-31
+
+Plain-English summary: this service collects almost nothing, shows no ads,
+runs no analytics, and cannot read your end-to-end-encrypted content. It is
+offered in the United States only.
+
+1. WHAT WE COLLECT
+   - Your handle and optional display name / bio / avatar. Your HANDLE and
+     these profile fields are chosen by you and are PUBLIC — anything you
+     put in them (including a real name, if you choose) is public by your
+     own choice.
+   - Your public cryptographic keys (never private keys).
+   - Content you post (posts, comments, reactions, media), stored so it
+     can be delivered to the audience you chose.
+   - Device records: a name you choose, the device's public key, its IP
+     address and last-seen time (deleted after 90 days of inactivity).
+   - A boolean attestation that you are 18 or older. We do NOT collect
+     your birth date, real name, email, or phone number.
+   - An operational audit log (sign-ins, moderation actions). Routine
+     entries are deleted after 90 days; moderation records are retained.
+   - If you set a recovery password: an encrypted recovery blob that the
+     server cannot decrypt.
+    - Support conversations you choose to send for bug reports, feature
+       requests, help, or other requests. These are linked to your account and
+       readable by authorized Console operators so they can reply.
+
+2. WHAT WE DO NOT COLLECT
+   No email address. No phone number. No real name. No location data.
+   No advertising identifiers. No analytics or tracking of any kind.
+
+3. HOW YOUR DATA IS USED
+   Solely to operate the service: authenticating your devices, delivering
+   your content to your chosen audience, responding to support requests, and
+   moderating reported content.
+   Your data is never sold, shared with advertisers, or used to train AI.
+
+3A. SERVICE PROVIDERS
+   During the beta we route traffic through Cloudflare, which operates the
+   network path between your app and our server and therefore processes
+   connection metadata, including your IP address, on our behalf. Cloudflare
+   is our only third-party service provider; we use no analytics or
+   advertising services. If you subscribe after the beta, a payment provider
+   will process your payment and hold your billing details — we will not.
+
+4. WHO CAN SEE YOUR CONTENT
+   Exactly the audience you chose: public, approved followers, or the
+   members of a Fold (a member-only group). IMPORTANT — what is and isn't
+   encrypted from us:
+   - PUBLIC posts and profiles are stored as plain text on the server, so
+     that strangers can read them. These are NOT hidden from the operator.
+    - Fold content, direct messages, and your Vault data are
+     end-to-end encrypted: the server stores only ciphertext and cannot
+     read them. (A small amount of Fold content posted during the early
+     beta, before Fold encryption shipped, may still be stored unencrypted
+     until it is deleted or migrated.)
+    - Voice and video calls: the server relays only call setup metadata
+       (which account called which, and when) so devices can find each
+       other. The call itself is encrypted directly between the two
+       devices and is never stored. If a relay server is needed to
+       connect the call, it carries only that encrypted traffic.
+    - To synchronize retained direct-message history across your devices, each
+       source device encrypts a separate bounded history snapshot to the target
+       device. The server stores only target-scoped ciphertext for up to 30 days
+       and cannot read the snapshot.
+    - Support conversations are NOT end-to-end encrypted. They are
+       TLS-protected in transit and stored so authorized Console operators can
+       read and answer them.
+    - When you report encrypted Fold content, the app explicitly submits your
+       decrypted text copy as reporter-supplied moderation evidence. Fold media
+       remains encrypted unless you separately submit a plaintext evidence copy.
+   Discoverability in search is off unless you turn it on. Blocking hides
+   you and them from each other.
+
+5. RETENTION AND DELETION
+   - Deleting a post or comment deletes it (media storage is reclaimed).
+   - Deleting your account removes your content and profile from the
+     server. Moderation/legal audit records are retained as required.
+   - Routine logs: 90 days. Device IPs: cleared after 90 days inactive.
+   - When content is reported, we preserve a frozen snapshot of the
+     reported content and its associated account records (including IP
+     records) as a moderation record for as long as the report and any
+     resulting enforcement remain relevant.
+    - Support conversations remain with your account until account deletion;
+       reply/status audit records may be retained as operational records.
+   - EXCEPTION for illegal activity: if your account is used for activity
+     that is illegal under U.S. law or that seriously violates the Terms
+     of Service, you forfeit these deletion and minimization protections
+     for that account. We may then freeze and preserve its entire
+     footprint — posts, comments, media, profile, follow/block
+     relationships, and device, session, and IP history — outside the
+     normal 90-day window, and your deletions become preserved tombstones
+     rather than erasure. See Section 6 of the Terms of Service.
+
+6. YOUR RIGHTS
+   From the app you can: export all your data (machine-readable), correct
+   your posts and profile, and delete your account. These work for
+   everyone, not just residents of specific states.
+
+7. SECURITY
+   All connections use TLS. Authentication is by cryptographic signature;
+   the server never sees a password for sign-in. Session tokens are
+   stored hashed. Recovery data is encrypted on your device before upload.
+   Recovery is OPTIONAL and your responsibility: if you do not set a
+   recovery password and lose all your devices, your account cannot be
+   recovered by anyone, including the operator. See the Terms of Service.
+
+8. DISCLOSURE
+   Data is disclosed only if legally compelled (e.g., a valid court
+   order), or where an account has forfeited its protections through
+   illegal activity (Terms of Service Section 6), and only what exists —
+   which never includes your private keys. In those cases we may preserve
+   and disclose the affected account's data (including device, session,
+   and IP history) to law enforcement and other lawful authorities.
+   Suspected CSAM is reported to NCMEC as required by federal law
+   (18 U.S.C. §2258A).
+
+9. BREACH NOTIFICATION
+   If a breach affecting your data is discovered, affected users will be
+   notified through the service without unreasonable delay.
+
+10. CONTACT
+   Use the Support action in Connect Messages, or contact the operator
+   directly, for privacy questions or requests.

@@ -1,0 +1,21 @@
+# HIVE production configuration (Linux server).
+# Copy to /var/lib/nexus-hive/hive.toml and edit. Everything that differs
+# dev<->prod lives here — promotion is a redeploy, not a rewrite.
+
+# Public listener. 443 requires CAP_NET_BIND_SERVICE (see the systemd unit).
+bind = "0.0.0.0:443"
+
+# The whole universe: hive.db, blobs/, server_key, TLS material.
+# Moving hosts = rsync this dir + start the binary.
+data_dir = "/var/lib/nexus-hive"
+
+# NEVER true in production.
+dev = false
+
+# Real TLS material (e.g. Let's Encrypt). Required when dev = false.
+tls_cert = "/var/lib/nexus-hive/tls/fullchain.pem"
+tls_key = "/var/lib/nexus-hive/tls/privkey.pem"
+
+# Reported in /v1/info.
+name = "hive"
+min_client = 1
