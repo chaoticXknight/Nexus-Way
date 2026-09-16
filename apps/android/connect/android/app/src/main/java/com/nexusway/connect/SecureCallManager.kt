@@ -232,6 +232,7 @@ class SecureCallManager(
     context: Context,
     private val sendSignal: (OutgoingCallSignal) -> Unit,
     private val onCallFailure: (String) -> Unit = {},
+    private val onStateChanged: (CallUiState) -> Unit = {},
 ) {
     private val appContext = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
@@ -303,13 +304,22 @@ class SecureCallManager(
         }
     }
 
-    var state by mutableStateOf(CallUiState())
-        private set
+    private var uiState by mutableStateOf(CallUiState())
+    var state: CallUiState
+        get() = uiState
+        private set(value) {
+            uiState = value
+            onStateChanged(value)
+        }
 
     val eglContext: EglBase.Context get() = eglBase.eglBaseContext
 
     fun setRelayServers(servers: List<CallIceServer>) {
         if (peerConnection == null) relayServers = servers
+    }
+
+    fun updatePeerLabel(label: String) { // Caller identity lookup can finish after the incoming screen appears.
+        if (state.phase != CallPhase.IDLE) state = state.copy(peerLabel = label) // Never resurrect a completed call to update its label.
     }
 
     init {
@@ -424,8 +434,8 @@ class SecureCallManager(
                 speakerEnabled = kind == "video",
                 status = "Incoming ${if (kind == "video") "video" else "voice"} call",
             )
-            CallRinger.start(appContext, callId)
-            main.postDelayed(ringTimeout, 60_000)
+            // Android's incoming-call notification owns ringing, vibration, and screen-off alert lifetime.
+            main.postDelayed(ringTimeout, incomingCallRemainingMillis(frame.optLong("expires_at", Long.MAX_VALUE), System.currentTimeMillis())) // Restoring an invite must not extend its original lifetime.
             return
         }
         if (callId != state.callId || from != state.peerAccount || kind != state.kind) return
@@ -526,9 +536,10 @@ class SecureCallManager(
             }
             if (device != null) {
                 audioManager.setCommunicationDevice(device)
-                audioDeviceModule.setPreferredInputDevice(
-                    device.takeIf { it.type != AudioDeviceInfo.TYPE_BUILTIN_SPEAKER },
-                )
+                val inputs = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS) // Microphone selection must use input devices, not the selected speaker.
+                val input = inputs.firstOrNull { it.type == device.type } // Prefer the microphone on the selected headset.
+                    ?: inputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC } // Speaker and earpiece routes use the handset microphone.
+                input?.let { audioDeviceModule.setPreferredInputDevice(it) } // This WebRTC version crashes when given null.
                 Log.i("NexusCall", "audio route type=${device.type} speaker=$speaker")
             } else {
                 audioManager.clearCommunicationDevice()
@@ -856,7 +867,9 @@ class SecureCallManager(
                 @Suppress("DEPRECATION")
                 audioManager.isSpeakerphoneOn = previousSpeakerphone
             }
-            audioDeviceModule.setPreferredInputDevice(null)
+            audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS) // WebRTC requires a real input device, even when restoring the default route.
+                .firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC } // Restore the handset microphone after a call.
+                ?.let { audioDeviceModule.setPreferredInputDevice(it) } // Leave routing unchanged if Android exposes no handset microphone.
             audioFocusRequest?.let(audioManager::abandonAudioFocusRequest)
             audioFocusRequest = null
             audioManager.mode = previousAudioMode

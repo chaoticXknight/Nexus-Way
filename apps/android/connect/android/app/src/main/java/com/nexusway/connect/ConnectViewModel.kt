@@ -35,13 +35,6 @@ private fun JSONObject.strOrNull(key: String): String? =
     if (isNull(key)) null else optString(key, "").ifEmpty { null }
 
 private const val NOTIFIER_PACKAGE = "com.nexusway.notify"
-private val NOTIFIER_FRAME_TYPES = setOf(
-    "connect_notif",
-    "wire_msg",
-    "wire_request",
-    "wire_accepted",
-    "call_signal",
-)
 
 data class Author(
     val accountId: String,
@@ -194,14 +187,10 @@ data class ChatContact(val author: Author, val direction: String?)
 
 class ConnectViewModel(app: Application) : AndroidViewModel(app) {
     private val store = Store(app)
-    private val callDeviceKeys = mutableMapOf<String, ByteArray>()
-    private var calls by mutableStateOf<SecureCallManager?>(null)
+    private val calls: SecureCallManager? get() = CallSession.current
     private var enrollment: Enrollment? = null
     private var refreshJob: Job? = null
     private var streamEventsJob: Job? = null
-    private var foregroundStream: okhttp3.WebSocket? = null
-    private var foregroundReconnectJob: Job? = null
-    private var foregroundStreamGeneration = 0L
     private var foregroundActive = false
     private val messageMediaDirectory = File(app.cacheDir, "wire-media").apply {
         deleteRecursively()
@@ -419,6 +408,7 @@ class ConnectViewModel(app: Application) : AndroidViewModel(app) {
             try {
                 block()
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 val msg = e.message ?: label
                 if (loud) errorDialog = msg else status = msg
             } finally {
@@ -471,7 +461,7 @@ class ConnectViewModel(app: Application) : AndroidViewModel(app) {
             }
             // Commit Notify first and Connect last. PackageInstaller owns both
             // sessions after commit, so the Connect process may safely restart.
-            if (autoUpdateEnabled && !updateBusy && !notifierBusy &&
+            if (autoUpdateEnabled && !BuildConfig.LOCAL_RELIABILITY_TEST && !updateBusy && !notifierBusy &&
                 callState.phase == CallPhase.IDLE &&
                 (updateAvailable || notifierInstallAvailable)
             ) {
@@ -792,6 +782,7 @@ class ConnectViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun afterSignIn(c: HiveClient) {
+        enrollment?.let { CallSession.configure(getApplication(), c, it) }
         startupStep("legal review") { refreshLegalStatus(c) }
         enrollment?.let {
             startupStep("WIRE key publication") { c.wirePublish(it.device, store.wireKey()) }
@@ -874,52 +865,13 @@ class ConnectViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setForeground(active: Boolean) {
         foregroundActive = active
-        if (active) {
-            connectForegroundStream()
-        } else {
-            foregroundStreamGeneration += 1
-            foregroundReconnectJob?.cancel()
-            foregroundReconnectJob = null
-            foregroundStream?.cancel()
-            foregroundStream = null
-        }
+        CallSession.setVisible(active)
     }
 
     private fun connectForegroundStream() {
         val client = api ?: return
-        if (!foregroundActive || foregroundStream != null) return
-        foregroundReconnectJob?.cancel()
-        foregroundReconnectJob = null
-        val generation = ++foregroundStreamGeneration
-        foregroundStream = runCatching {
-            client.stream(
-                onFrame = { frame ->
-                    if (frame.optString("type") !in NOTIFIER_FRAME_TYPES) {
-                        HiveStreamEvents.tryEmit(frame)
-                    }
-                },
-                onClosed = {
-                    viewModelScope.launch {
-                        if (generation != foregroundStreamGeneration) return@launch
-                        foregroundStream = null
-                        if (foregroundActive && api === client) {
-                            foregroundReconnectJob = launch {
-                                delay(2_000)
-                                connectForegroundStream()
-                            }
-                        }
-                    }
-                },
-            )
-        }.getOrElse {
-            if (generation == foregroundStreamGeneration && foregroundActive) {
-                foregroundReconnectJob = viewModelScope.launch {
-                    delay(2_000)
-                    connectForegroundStream()
-                }
-            }
-            null
-        }
+        enrollment?.let { CallSession.configure(getApplication(), client, it) }
+        CallSession.setVisible(foregroundActive)
     }
 
     fun restorePendingCall(callId: String?) {
@@ -1021,19 +973,13 @@ class ConnectViewModel(app: Application) : AndroidViewModel(app) {
             store.hiddenConversations = hiddenConversations
         }
         store.saveDirectMessages(directMessages)
-        // Same consume-once rule as alerts: only a notifying path may spend
-        // message freshness, so the background worker can still notify for
-        // messages first observed by a silent foreground refresh. Incoming
-        // messages rendered by an open app are absorbed via markMessagesRead
-        // paths; ones the user hasn't seen keep their freshness.
-        if (notifyNew) {
-            val fresh = store.newNotificationIds("message", verified.messages.map { it.id })
-            val failed = verified.messages.filter { it.id in fresh }
-                .filterNot { ConnectNotifications.postMessage(getApplication(), it) }
-            store.retryNotificationIds("message", failed.map { it.id })
-        } else if (dmOpen) {
-            // The Messages surface is open — the user sees these directly.
-            store.newNotificationIds("message", verified.messages.map { it.id })
+        store.queueMessageNotifications(verified.messages)
+        if (dmOpen) {
+            verified.messages.forEach { store.completeMessageAlert(it.id) }
+        } else if (notifyNew) {
+            ConnectNotifications.deliverPendingMessages(getApplication())
+        } else if (verified.messages.isNotEmpty()) {
+            ConnectNotifications.syncNow(getApplication(), expedited = true)
         }
         c.wireAck(verified.verifiedIds)
         if (verified.messages.isNotEmpty() || validDeletions.isNotEmpty()) {
@@ -1280,71 +1226,25 @@ class ConnectViewModel(app: Application) : AndroidViewModel(app) {
         syncMessageHistoryNow(requestOthers = true)
     }
 
-    private suspend fun verifyCallSignal(frame: JSONObject): Boolean {
-        val from = frame.optString("from")
-        val deviceId = frame.optString("sender_device")
-        val cacheKey = "$from:$deviceId"
-        val publicKey = callDeviceKeys[cacheKey] ?: run {
-            val directory = api?.wireDirectory(from) ?: return false
-            val devices = directory.optJSONArray("devices") ?: return false
-            val device = (0 until devices.length())
-                .map { devices.getJSONObject(it) }
-                .firstOrNull { it.optString("device_id") == deviceId }
-                ?: return false
-            if (!WireCrypto.validateDevice(from, directory.optString("identity_pub"), device)) return false
-            runCatching { unb64(device.getString("device_pub")) }.getOrNull()
-                ?.also { callDeviceKeys[cacheKey] = it }
-                ?: return false
-        }
-        val payload = frame.optString("payload")
-        val signed = WireCrypto.signedCall(
-            frame.optString("call_id"),
-            frame.optString("action"),
-            frame.optString("kind"),
-            payload,
-        )
-        val signature = runCatching { unb64(frame.getString("signature")) }.getOrNull() ?: return false
-        return Key.verify(publicKey, signed.toByteArray(), signature)
-    }
-
     private suspend fun handleCallSignal(frame: JSONObject) {
-        if (!verifyCallSignal(frame)) return
-        if (frame.optString("action") == "invite") {
-            callManager().setRelayServers(runCatching { api?.callIceServers().orEmpty() }.getOrDefault(emptyList()))
-        }
-        val from = frame.optString("from")
-        val label = messageContacts.firstOrNull { it.author.accountId == from }
-            ?.author?.label ?: "Secure contact"
-        callManager().handle(frame, label)
+        CallSession.receive(frame)
     }
 
-    private fun callManager(): SecureCallManager = calls ?: SecureCallManager(
-        context = getApplication(),
-        sendSignal = { signal ->
-            viewModelScope.launch {
-                runCatching {
-                    api?.wireCallSignal(
-                        signal.target,
-                        signal.callId,
-                        signal.action,
-                        signal.kind,
-                        enrollment?.device ?: return@runCatching,
-                        signal.payload,
-                    )
-                }.onFailure { errorDialog = it.message ?: "call signaling failed" }
-            }
-        },
-        onCallFailure = { errorDialog = it },
-    ).also { calls = it }
+    private fun callManager(): SecureCallManager = CallSession.manager()
 
     fun startCall(contact: Author, kind: String) {
         viewModelScope.launch {
             val relayServers = runCatching { api?.callIceServers().orEmpty() }.getOrDefault(emptyList())
             callManager().setRelayServers(relayServers)
-            callManager().start(contact, kind)
+            runCatching { CallService.start(getApplication(), contact, kind) }
+                .onFailure { errorDialog = "Could not start the call service. Check microphone permission." }
         }
     }
-    fun acceptCall() = calls?.accept()
+    fun acceptCall() {
+        val kind = calls?.state?.kind ?: return
+        runCatching { CallService.accept(getApplication(), kind) }
+            .onFailure { errorDialog = "Could not start the call service. Check microphone permission." }
+    }
     fun rejectCall() = calls?.reject()
     fun hangupCall() = calls?.hangup()
     fun toggleCallMute() = calls?.toggleMute()
@@ -1564,8 +1464,7 @@ class ConnectViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun signOut() {
-        calls?.hangup()
-        callDeviceKeys.clear()
+        CallSession.clear()
         val signedInApi = api
         if (signedInApi != null) {
             viewModelScope.launch {
@@ -2888,7 +2787,7 @@ class ConnectViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     override fun onCleared() {
-        calls?.dispose()
+        CallSession.setVisible(false)
         messageMediaDirectory.deleteRecursively()
         postMediaDirectory.deleteRecursively()
         File(getApplication<Application>().cacheDir, "wire-recordings").deleteRecursively()

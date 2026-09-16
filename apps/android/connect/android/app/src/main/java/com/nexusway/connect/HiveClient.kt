@@ -15,6 +15,7 @@ package com.nexusway.connect
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -99,7 +100,8 @@ fun accountIdFor(publicKey: ByteArray): String = sha256hex(publicKey)
 fun deviceIdFor(publicKey: ByteArray): String = sha256hex(publicKey)
 
 class HiveClient(baseUrl: String, acceptSelfSigned: Boolean) {
-    private val base = baseUrl.trimEnd('/')
+    private val base = baseUrl.trim().toHttpUrlOrNull()?.toString()?.trimEnd('/')
+        ?: throw HiveException("Enter a valid HIVE server address, including https://.")
     private val json = "application/json; charset=utf-8".toMediaType()
     private val insecureDevTls = acceptSelfSigned && BuildConfig.DEBUG &&
         runCatching { java.net.URI(base).host }
@@ -142,16 +144,12 @@ class HiveClient(baseUrl: String, acceptSelfSigned: Boolean) {
     // ------------------------------------------------------------ plumbing
 
     private suspend fun call(request: Request): JSONObject = withContext(Dispatchers.IO) {
-        val resp: Response = http.newCall(request).execute()
-        resp.use {
-            val body = it.body?.string() ?: throw HiveException("empty response")
-            val v = JSONObject(body)
-            if (!v.optBoolean("ok", false)) {
-                val error = v.optString("err", "HIVE error ${it.code}")
-                if (error == "invalid or expired session") throw SessionExpiredException()
-                throw HiveException(error)
+        try {
+            http.newCall(request).execute().use { response ->
+                parseHiveResponse(response.code, response.body?.string())
             }
-            v
+        } catch (error: java.io.IOException) {
+            throw connectionFailure(error)
         }
     }
 
@@ -913,7 +911,11 @@ class HiveClient(baseUrl: String, acceptSelfSigned: Boolean) {
             override fun onMessage(webSocket: WebSocket, text: String) {
                 val v = runCatching { JSONObject(text) }.getOrNull() ?: return
                 when (v.optString("type")) {
-                    "hello" -> webSocket.send(JSONObject().put("token", t).toString())
+                    "hello" -> {
+                        if (pin != null && v.optString("server_pub") != pin) {
+                            webSocket.close(1008, "HIVE server key changed")
+                        } else webSocket.send(JSONObject().put("token", t).toString())
+                    }
                     "authed" -> {}
                     "error" -> webSocket.close(1000, null)
                     else -> onFrame(v)
@@ -922,6 +924,10 @@ class HiveClient(baseUrl: String, acceptSelfSigned: Boolean) {
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) =
                 onClosed()
+
+            override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                webSocket.close(code, reason)
+            }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) = onClosed()
         })

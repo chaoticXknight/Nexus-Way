@@ -103,7 +103,6 @@ class NotificationRelayReceiver : BroadcastReceiver() {
         val frame = intent.getStringExtra("frame")
             ?.let { runCatching { JSONObject(it) }.getOrNull() }
             ?: return
-        NexusNotifier.acknowledge(context, intent.getStringExtra("relay_id"))
         Log.i("NexusNotifier", "received relay frame type=${frame.optString("type")}")
         if (frame.optString("type") == "wire_request") {
             val from = frame.optString("from")
@@ -113,29 +112,11 @@ class NotificationRelayReceiver : BroadcastReceiver() {
             }
         }
         if (frame.optString("type") == "call_signal") {
-            val callId = frame.optString("call_id")
-            val store = Store(context)
-            if (frame.optString("action") == "invite") {
-                store.savePendingCall(frame)
-                CallRinger.start(context, callId)
-                ConnectNotifications.postIncomingCall(context, frame)
-            } else {
-                val pendingCall = store.loadPendingCall()
-                    ?.takeIf { it.optString("call_id") == callId }
-                store.clearPendingCall(callId)
-                CallRinger.stop(callId)
-                ConnectNotifications.cancelIncomingCall(context, callId)
-                if (frame.optString("action") == "hangup" && pendingCall != null) {
-                    ConnectNotifications.postMissedCall(
-                        context,
-                        callId,
-                        pendingCall.optString("kind", "voice"),
-                    )
-                }
-            }
+            frame.put("relay_id", intent.getStringExtra("relay_id"))
+            CallSession.receive(frame)
         } else {
-            ConnectNotifications.syncNow(context, expedited = true)
+            ConnectNotifications.syncNow(context, expedited = true, relayId = intent.getStringExtra("relay_id"))
+            HiveStreamEvents.tryEmit(frame)
         }
-        HiveStreamEvents.tryEmit(frame)
     }
 }

@@ -19,8 +19,8 @@ android {
         applicationId = "com.nexusway.notify"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2035
-        versionName = "0.2.35"
+        versionCode = 2036
+        versionName = if (providers.gradleProperty("localReliabilityTest").orNull == "true") "0.2.36-local" else "0.2.36"
     }
 
     signingConfigs {

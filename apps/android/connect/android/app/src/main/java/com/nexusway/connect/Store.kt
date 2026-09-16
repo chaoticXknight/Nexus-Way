@@ -249,8 +249,14 @@ class Store(context: Context) {
         private val notificationLock = Any()
     }
 
-    fun loadDirectMessages(): List<DirectMessage> {
-        val array = runCatching { JSONArray(prefs.getString("wire_history", "[]")) }
+    var notificationWatermark: String?
+        get() = prefs.getString("notification_watermark", null)
+        set(value) { check(prefs.edit().putString("notification_watermark", value).commit()) }
+
+    fun loadDirectMessages(): List<DirectMessage> = loadStoredMessages("wire_history")
+
+    private fun loadStoredMessages(key: String): List<DirectMessage> {
+        val array = runCatching { JSONArray(prefs.getString(key, "[]")) }
             .getOrElse { return emptyList() }
         return (0 until array.length()).mapNotNull { index ->
             runCatching {
@@ -276,12 +282,37 @@ class Store(context: Context) {
         }
     }
 
-    fun saveDirectMessages(messages: List<DirectMessage>) {
-        prefs.edit().putString("wire_history", encodeDirectMessages(messages).toString()).apply()
+    fun saveDirectMessages(messages: List<DirectMessage>) = synchronized(notificationLock) {
+        val merged = mergeMessageHistories(loadDirectMessages(), messages, deletedMessageIds, deletedMessageIds)
+        check(prefs.edit().putString("wire_history", encodeDirectMessages(merged.messages).toString()).commit()) {
+            "Could not save messages on this device"
+        }
     }
 
-    private fun encodeDirectMessages(messages: List<DirectMessage>): JSONArray = JSONArray().apply {
-        messages.takeLast(1_000).forEach { message ->
+    fun queueMessageNotifications(messages: List<DirectMessage>) = synchronized(notificationLock) {
+        val delivered = prefs.getStringSet("notified_message_ids", emptySet()).orEmpty()
+        val pending = pendingMessageNotifications(
+            loadStoredMessages("pending_message_alerts"), messages, delivered, deletedMessageIds,
+        )
+        check(prefs.edit().putString("pending_message_alerts", encodeDirectMessages(pending, Int.MAX_VALUE).toString()).commit())
+    }
+
+    fun pendingMessageAlerts(): List<DirectMessage> = synchronized(notificationLock) {
+        loadStoredMessages("pending_message_alerts").filterNot { it.id in deletedMessageIds }
+    }
+
+    fun completeMessageAlert(id: String) = synchronized(notificationLock) {
+        val pending = loadStoredMessages("pending_message_alerts").filterNot { it.id == id }
+        val delivered = prefs.getStringSet("notified_message_ids", emptySet()).orEmpty() + id
+        check(prefs.edit()
+            .putString("pending_message_alerts", encodeDirectMessages(pending, Int.MAX_VALUE).toString())
+            .putStringSet("notified_message_ids", delivered.toList().takeLast(2_000).toSet())
+            .putBoolean("notified_message_primed", true)
+            .commit())
+    }
+
+    private fun encodeDirectMessages(messages: List<DirectMessage>, limit: Int = 1_000): JSONArray = JSONArray().apply {
+        messages.takeLast(limit).forEach { message ->
             put(JSONObject().apply {
                 put("id", message.id)
                 put("peer_account", message.peerAccount)

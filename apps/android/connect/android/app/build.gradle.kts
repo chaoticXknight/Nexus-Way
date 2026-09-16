@@ -23,9 +23,14 @@ android {
         applicationId = "com.nexusway.connect"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2050
-        versionName = "0.2.50"
+        versionCode = 2051
+        val localTest = providers.gradleProperty("localReliabilityTest").orNull == "true"
+        versionName = if (localTest) "0.2.51-local" else "0.2.51"
+        buildConfigField("boolean", "LOCAL_RELIABILITY_TEST", localTest.toString())
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" // Exercise native notifications and WebRTC routes on a real Android device.
     }
+
+    testBuildType = if (providers.gradleProperty("callDeviceTests").orNull == "true") "release" else "debug" // Test the signed local release without replacing it with a differently signed debug app.
 
     signingConfigs {
         if (keystorePropsFile.exists()) {
@@ -40,9 +45,10 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = providers.gradleProperty("callDeviceTests").orNull != "true" // Instrumentation needs shared AndroidX classes that release shrinking otherwise removes.
+            isShrinkResources = isMinifyEnabled // Production releases remain optimized; only explicit device-test builds retain test-visible classes.
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            testProguardFiles("test-proguard-rules.pro") // Keep Android test-runner annotation rules out of the shipped application.
             signingConfig = signingConfigs.findByName("release")
         }
     }
@@ -86,4 +92,8 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    androidTestImplementation("androidx.test:runner:1.6.2") // Run isolated device regressions without changing enrolled accounts.
+    androidTestImplementation("androidx.test.ext:junit:1.2.1") // Use the AndroidJUnit4 runner and activity lifecycle checks.
+    androidTestImplementation("androidx.test.uiautomator:uiautomator:2.3.0") // Inspect the real phone's call UI rather than assuming it renders.
+    androidTestImplementation("com.google.errorprone:error_prone_annotations:2.28.0") // Supply annotation classes referenced by the minified Android test runner.
 }

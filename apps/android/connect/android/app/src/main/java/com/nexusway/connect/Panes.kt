@@ -4,6 +4,8 @@
 
 package com.nexusway.connect
 
+import androidx.compose.material.icons.outlined.Notifications // Use the existing Material icon library for Android notification settings.
+
 import android.Manifest
 import android.content.Context
 import android.media.MediaPlayer
@@ -2543,6 +2545,30 @@ fun SettingsSheet(vm: ConnectViewModel, onClose: () -> Unit) {
             }
 
             if (section == SettingsSection.Messaging) item {
+                val callContext = androidx.compose.ui.platform.LocalContext.current // Android owns call notification and background-access settings.
+                var accessRevision by remember { mutableStateOf(0) } // Refresh permission state when returning from Android Settings.
+                androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { accessRevision++ } // Reflect changes without reopening Connect settings.
+                val backgroundRestricted = remember(accessRevision) { android.os.Build.VERSION.SDK_INT >= 28 && callContext.getSystemService(android.app.ActivityManager::class.java).isBackgroundRestricted } // Detect the phone setting that can stop locked-screen calls.
+                val batteryExempt = remember(accessRevision) { callContext.getSystemService(android.os.PowerManager::class.java).isIgnoringBatteryOptimizations(callContext.packageName) } // A foreground service alone does not bypass Doze networking restrictions.
+                val fullScreenAllowed = remember(accessRevision) { android.os.Build.VERSION.SDK_INT < 34 || callContext.getSystemService(android.app.NotificationManager::class.java).canUseFullScreenIntent() } // Android 14 and later require separate full-screen consent.
+                fun openCallSetting(action: String, packageUri: Boolean = true) { // Use system screens rather than silently changing user preferences.
+                    val intent = android.content.Intent(action) // Keep permission changes under Android's control.
+                    if (packageUri) intent.data = android.net.Uri.parse("package:${callContext.packageName}") // Open settings for Connect only.
+                    else intent.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, callContext.packageName) // Notification settings use a package extra instead of a URI.
+                    runCatching { callContext.startActivity(intent) }.onFailure { vm.errorDialog = "Open Android Settings, then Apps, then Nexus Connect" } // Handle manufacturer-specific missing settings screens.
+                }
+                SettingsLabel("CALLS & NOTIFICATIONS") // Keep call access alongside messaging preferences.
+                SettingsNavRow(Icons.Outlined.Notifications, "Ringtone & notifications", "Android notification settings") { // Android controls ringtone volume, vibration, and channel permission.
+                    openCallSetting(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS, false)
+                }
+                if (android.os.Build.VERSION.SDK_INT >= 34) { // Older Android versions use the manifest permission directly.
+                    SettingsNavRow(Icons.Outlined.Call, "Full-screen incoming calls", if (fullScreenAllowed) "Allowed" else "Not allowed") { // Show the actual permission state instead of assuming popups are enabled.
+                        openCallSetting(android.provider.Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT)
+                    }
+                }
+                SettingsNavRow(Icons.Outlined.Call, "Background call access", if (backgroundRestricted) "Restricted by Android" else if (batteryExempt) "Unrestricted" else "Battery optimized") { // Make screen-off network restrictions visible to callers.
+                    openCallSetting(if (backgroundRestricted || batteryExempt) android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS else android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS) // Restricted apps need their battery mode changed; otherwise Android can request the VoIP exemption directly.
+                }
                 SettingsLabel("MESSAGING")
                 SettingsSwitch(
                     "Auto-accept message invites",

@@ -618,10 +618,7 @@ pub async fn call_signal(
     if !s.rate_ok(&format!("call-signal:{sender_device}"), 240, 60) {
         return err("call signaling rate limit exceeded");
     }
-    s.push_to_account(
-        &other,
-        None,
-        json!({
+    let frame = json!({
             "type": "call_signal",
             "from": me,
             "sender_device": sender_device,
@@ -630,9 +627,49 @@ pub async fn call_signal(
             "kind": req.kind,
             "payload": req.payload,
             "signature": req.signature,
-        }),
-    );
+            "expires_at": now() + 60,
+        });
+    if matches!(req.action.as_str(), "invite" | "accept" | "reject" | "hangup") {
+        let (first, second) = if me < other { (&me, &other) } else { (&other, &me) };
+        let ended = req.action != "invite";
+        let saved: Result<(i64, i64), _> = sqlx::query_as(
+            "INSERT INTO pending_calls(call_id,first_account,second_account,recipient,frame,expires,ended) \
+             VALUES(?,?,?,?,?,?,?) ON CONFLICT(call_id,first_account,second_account) \
+             DO UPDATE SET ended=MAX(pending_calls.ended,excluded.ended) RETURNING ended,expires",
+        )
+        .bind(&req.call_id).bind(first).bind(second).bind(&other)
+        .bind(frame.to_string()).bind(now() + 60).bind(ended)
+        .fetch_one(&s.db).await;
+        let (finished, expires) = match saved {
+            Ok(state) => state,
+            Err(_) => return err("could not save call state"),
+        };
+        if req.action == "invite" && (finished != 0 || expires <= now()) {
+            return Json(json!({ "ok": true }));
+        }
+        let _ = sqlx::query("DELETE FROM pending_calls WHERE expires<?")
+            .bind(now() - 600).execute(&s.db).await;
+    }
+    s.push_to_account(&other, None, frame);
     Json(json!({ "ok": true }))
+}
+
+pub(crate) async fn pending_call_invites(s: &AppState, recipient: &str) -> Vec<String> {
+    let rows: Vec<(String,)> = sqlx::query_as(
+        "SELECT p.frame FROM pending_calls p JOIN devices d \
+         ON d.id=json_extract(p.frame,'$.sender_device') \
+         WHERE p.recipient=? AND p.ended=0 AND p.expires>? AND d.revoked_at IS NULL \
+         ORDER BY p.expires LIMIT 100",
+    ).bind(recipient).bind(now()).fetch_all(&s.db).await.unwrap_or_default();
+    let mut frames = Vec::new();
+    for (text,) in rows {
+        if let Ok(frame) = serde_json::from_str::<serde_json::Value>(&text) {
+            if let Some(sender) = frame["from"].as_str() {
+                if chat_allowed(s, sender, recipient).await { frames.push(text); }
+            }
+        }
+    }
+    frames
 }
 
 /// Return STUN plus short-lived coturn REST credentials. The shared TURN

@@ -19,6 +19,8 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
+import android.net.ConnectivityManager
+import android.net.Network
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -37,6 +39,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -135,17 +138,34 @@ class NotificationRelayService : Service() {
     private var connectionJob: kotlinx.coroutines.Job? = null
     private var socket: WebSocket? = null
     private val pendingAlerts = ConcurrentHashMap<String, Job>()
+    private val pendingFrames = ConcurrentHashMap<String, String>()
+    private var generation = 0L
+    private var connectionStatus = "Connecting to HIVE"
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) {
+            scope.launch { restartConnection() }
+        }
+        override fun onLost(network: Network) { socket?.cancel() }
+    }
 
     override fun onCreate() {
         super.onCreate()
         createChannels()
         startForeground(NOTIFICATION_ID, serviceNotification())
+        getSystemService(ConnectivityManager::class.java).registerDefaultNetworkCallback(networkCallback)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_ACKNOWLEDGE) {
-            intent.getStringExtra(EXTRA_RELAY_ID)?.let { pendingAlerts.remove(it)?.cancel() }
-            return START_STICKY
+            intent.getStringExtra(EXTRA_RELAY_ID)?.let { relayId ->
+                pendingAlerts.remove(relayId)?.cancel()
+                pendingFrames.remove(relayId)?.let { text ->
+                    val frame = JSONObject(text)
+                    fallbackAlert(frame, relayId)?.let { alert ->
+                        getSystemService(NotificationManager::class.java).cancel(alert.id)
+                    }
+                }
+            }
         }
         val store = RelayStore(this)
         if (intent?.action == ACTION_CLEAR) {
@@ -160,13 +180,21 @@ class NotificationRelayService : Service() {
             return START_NOT_STICKY
         }
         if (!configChanged && connectionJob?.isActive == true) return START_STICKY
-        connectionJob?.cancel()
-        socket?.cancel()
-        connectionJob = scope.launch { maintainConnection(config) }
+        restartConnection(config)
         return START_STICKY
     }
 
+    @Synchronized
+    private fun restartConnection(config: RelayConfig? = RelayStore(this).load()) {
+        if (config == null) return
+        connectionJob?.cancel()
+        socket?.cancel()
+        val owner = ++generation
+        connectionJob = scope.launch { maintainConnection(config, owner) }
+    }
+
     override fun onDestroy() {
+        getSystemService(ConnectivityManager::class.java).unregisterNetworkCallback(networkCallback)
         socket?.cancel()
         scope.cancel()
         super.onDestroy()
@@ -174,15 +202,17 @@ class NotificationRelayService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    private suspend fun maintainConnection(config: RelayConfig) {
-        var retryDelay = 2_000L
-        while (scope.isActive) {
+    private suspend fun maintainConnection(config: RelayConfig, owner: Long) {
+        val retryDelay = java.util.concurrent.atomic.AtomicLong(2_000L)
+        while (currentCoroutineContext().isActive && owner == generation) {
+            updateConnectionStatus("Connecting to HIVE")
             val disconnected = CompletableDeferred<Unit>()
             val request = Request.Builder()
                 .url(config.server.replaceFirst("https://", "wss://") + "/v1/notification/stream")
                 .build()
             socket = client.newWebSocket(request, object : WebSocketListener() {
                 override fun onMessage(webSocket: WebSocket, text: String) {
+                    if (owner != generation) return
                     val frame = runCatching { JSONObject(text) }.getOrNull() ?: return
                     when (frame.optString("type")) {
                         "hello" -> {
@@ -193,7 +223,12 @@ class NotificationRelayService : Service() {
                                 webSocket.send(JSONObject().put("token", config.token).toString())
                             }
                         }
-                        "authed" -> Log.i(TAG, "notification relay connected")
+                        "authed" -> {
+                            retryDelay.set(2_000L)
+                            updateConnectionStatus("Connected to HIVE")
+                            Log.i(TAG, "notification relay connected")
+                            forwardFrame("{\"type\":\"relay_ready\"}", JSONObject().put("type", "relay_ready"))
+                        }
                         "error" -> webSocket.close(1008, "relay auth failed")
                         else -> {
                             Log.i(TAG, "forwarding relay frame type=${frame.optString("type")}")
@@ -210,21 +245,44 @@ class NotificationRelayService : Service() {
                 override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                     disconnected.complete(Unit)
                 }
+
+                override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
+                    webSocket.close(code, reason)
+                }
             })
             disconnected.await()
+            if (owner != generation) return
             socket = null
-            delay(retryDelay)
-            retryDelay = (retryDelay * 2).coerceAtMost(60_000L)
+            updateConnectionStatus("Disconnected; retrying")
+            delay(retryDelay.get())
+            retryDelay.updateAndGet { (it * 2).coerceAtMost(60_000L) }
         }
     }
 
+    private fun updateConnectionStatus(status: String) {
+        connectionStatus = status
+        getSystemService(NotificationManager::class.java).notify(NOTIFICATION_ID, serviceNotification())
+    }
+
     private fun forwardFrame(frameText: String, frame: JSONObject) {
+        if (frame.optString("type") == "call_signal" && frame.optString("action") in setOf("hangup", "reject", "accept")) {
+            val callId = frame.optString("call_id")
+            pendingFrames.entries.filter { (_, text) ->
+                runCatching { JSONObject(text).optString("call_id") == callId }.getOrDefault(false)
+            }.forEach { (pendingId, _) ->
+                pendingAlerts.remove(pendingId)?.cancel()
+                pendingFrames.remove(pendingId)
+            }
+        }
         val relayId = UUID.randomUUID().toString()
         val alert = fallbackAlert(frame, relayId)?.let { fallback ->
+            pendingFrames[relayId] = frameText
             scope.launch(start = CoroutineStart.LAZY) {
                 delay(FALLBACK_DELAY_MS)
                 pendingAlerts.remove(relayId)
                 postFallback(fallback)
+                delay(5 * 60_000L)
+                pendingFrames.remove(relayId)
             }.also { pendingAlerts[relayId] = it }
         }
         sendBroadcast(Intent(CONNECT_FRAME_ACTION).apply {
@@ -319,6 +377,9 @@ class NotificationRelayService : Service() {
                     "Incoming secure $kind call",
                     "Open Nexus Connect to answer",
                     OPEN_CALL_ACTION,
+                    callId = frame.optString("call_id"),
+                    callFrame = frame.toString(),
+                    expiresAt = frame.optLong("expires_at", System.currentTimeMillis() / 1_000 + 60),
                 )
             } else {
                 frame.optString("call_id").takeIf { it.isNotEmpty() }?.let { callId ->
@@ -353,6 +414,7 @@ class NotificationRelayService : Service() {
     }
 
     private fun postFallback(alert: FallbackAlert) {
+        if (alert.expiresAt != 0L && alert.expiresAt <= System.currentTimeMillis() / 1_000) return
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -362,6 +424,11 @@ class NotificationRelayService : Service() {
             alert.id,
             Intent().setClassName(CONNECT_PACKAGE, "$CONNECT_PACKAGE.MainActivity").apply {
                 action = alert.action
+                if (alert.callId.isNotEmpty()) {
+                    putExtra("call_id", alert.callId)
+                    putExtra("call_frame", alert.callFrame)
+                    putExtra("call_expires_at", alert.expiresAt)
+                }
                 if (alert.kind.isNotEmpty()) putExtra(ALERT_KIND_EXTRA, alert.kind)
                 if (alert.subject.isNotEmpty()) putExtra(ALERT_SUBJECT_EXTRA, alert.subject)
                 if (alert.foldId.isNotEmpty()) putExtra(FOLD_ID_EXTRA, alert.foldId)
@@ -402,7 +469,7 @@ class NotificationRelayService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.stat_notify_sync_noanim)
             .setContentTitle("Nexus Notify")
-            .setContentText("Connect notifications are ready")
+            .setContentText(connectionStatus)
             .setContentIntent(openConnect)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_MIN)
@@ -441,6 +508,9 @@ private data class FallbackAlert(
     val kind: String = "",
     val subject: String = "",
     val foldId: String = "",
+    val callId: String = "",
+    val callFrame: String = "",
+    val expiresAt: Long = 0L,
 )
 
 class RelayBootReceiver : BroadcastReceiver() {

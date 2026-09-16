@@ -11,6 +11,7 @@ import android.app.Application
 class ConnectApplication : Application() {
     override fun onCreate() {
         super.onCreate()
+        CallSession.initialize(this)
         ConnectNotifications.createChannels(this)
         ConnectNotifications.schedule(this)
     }

@@ -33,6 +33,8 @@ import org.json.JSONObject
 const val OPEN_ALERTS_ACTION = "com.nexusway.connect.OPEN_ALERTS"
 const val OPEN_MESSAGES_ACTION = "com.nexusway.connect.OPEN_MESSAGES"
 const val OPEN_CALL_ACTION = "com.nexusway.connect.OPEN_CALL"
+const val ANSWER_CALL_ACTION = "com.nexusway.connect.ANSWER_CALL" // Distinguish an explicit answer from merely opening the call screen.
+const val DECLINE_CALL_ACTION = "com.nexusway.connect.DECLINE_CALL" // Bind notification rejection to its original call ID.
 const val OPEN_FOLD_ACTION = "com.nexusway.connect.OPEN_FOLD"
 const val CALL_ID_EXTRA = "call_id"
 const val CALL_KIND_EXTRA = "call_kind"
@@ -119,9 +121,21 @@ fun verifyInbox(accountId: String, wire: WireKey, array: JSONArray): VerifiedInb
 }
 
 object ConnectNotifications {
+    private val deliveryLock = Any()
+
+    fun deliverPendingMessages(context: Context): Boolean = synchronized(deliveryLock) {
+        val store = Store(context)
+        var delivered = true
+        store.pendingMessageAlerts().forEach { message ->
+            if (postMessage(context, message)) store.completeMessageAlert(message.id)
+            else delivered = false
+        }
+        delivered
+    }
+
     private const val ALERTS_CHANNEL = "social_alerts"
     private const val MESSAGES_CHANNEL = "encrypted_messages"
-    private const val CALLS_CHANNEL = "secure_calls_v2"
+    private const val CALLS_CHANNEL = "secure_calls_v3" // Android cannot change sound on the existing, app-created silent channel.
     private val deliveredChannels = setOf(ALERTS_CHANNEL, MESSAGES_CHANNEL, CALLS_CHANNEL)
 
     fun createChannels(context: Context) {
@@ -143,7 +157,9 @@ object ConnectNotifications {
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
                 description = "Incoming encrypted voice and video calls"
-                setSound(null, null)
+                setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_RINGTONE), // Let Android ring even when Connect is backgrounded.
+                    android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE).build()) // Respect ringtone volume and Do Not Disturb.
+                enableVibration(true) // Incoming calls also alert phones in vibrate mode.
             },
         ))
     }
@@ -159,8 +175,9 @@ object ConnectNotifications {
         )
     }
 
-    fun syncNow(context: Context, expedited: Boolean = false) {
+    fun syncNow(context: Context, expedited: Boolean = false, relayId: String? = null) {
         val request = OneTimeWorkRequestBuilder<NotificationSyncWorker>()
+            .setInputData(androidx.work.workDataOf("relay_id" to relayId))
             .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
             .apply {
                 if (expedited) setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
@@ -177,6 +194,7 @@ object ConnectNotifications {
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.activeNotifications
             .filter { it.notification.channelId in deliveredChannels }
+            .filterNot { it.notification.channelId == CALLS_CHANNEL && it.id == CallSession.current?.state?.takeIf { state -> state.phase == CallPhase.INCOMING }?.callId?.hashCode() } // Reading messages must not silence an unanswered call.
             .forEach { manager.cancel(it.tag, it.id) }
     }
 
@@ -246,17 +264,38 @@ object ConnectNotifications {
 
     fun postIncomingCall(context: Context, frame: JSONObject): Boolean {
         val kind = if (frame.optString("kind") == "video") "video" else "voice"
-        return post(
-            context,
-            CALLS_CHANNEL,
-            frame.optString("call_id").hashCode(),
-            "Incoming secure $kind call",
-            "Open Nexus Connect to answer",
-            OPEN_CALL_ACTION,
-            "connect-calls",
-            callId = frame.optString("call_id"),
-            callKind = kind,
-        )
+        val callId = frame.optString("call_id") // Tie display and all actions to the verified invite.
+        val remaining = incomingCallRemainingMillis(frame.optLong("expires_at", Long.MAX_VALUE), System.currentTimeMillis()) // Retry only for the original invite lifetime.
+        if (remaining == 0L) return true // Expired calls must not wake or ring the phone.
+        val state = CallSession.current?.state ?: return false // Never display unverified caller-supplied identities.
+        if (state.callId != callId || state.phase != CallPhase.INCOMING) return true // Duplicate delivery must not resurrect an answered call.
+        val manager = NotificationManagerCompat.from(context) // Respect the user's notification permission and channel choices.
+        if (!manager.areNotificationsEnabled()) return false
+        if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false // Permission can be revoked independently of a channel's importance.
+        if (context.getSystemService(NotificationManager::class.java).getNotificationChannel(CALLS_CHANNEL)?.importance == NotificationManager.IMPORTANCE_NONE) return false
+        val existing = context.getSystemService(NotificationManager::class.java).activeNotifications // Redelivered invites should leave an already-ringing notification alone.
+            .firstOrNull { it.id == callId.hashCode() && it.notification.channelId == CALLS_CHANNEL }?.notification // Match only this call's incoming channel.
+        if (existing != null) return true // Android 12 can silence any update to its looping ringtone; retain the initial verified identity until the call ends.
+        fun action(name: String): PendingIntent = PendingIntent.getActivity(context, 0, // Intent data prevents collisions between different calls and actions.
+            Intent(context, IncomingCallActivity::class.java).setAction(name) // Open only the call controls above the lock screen.
+                .setData(android.net.Uri.Builder().scheme("nexus-call").authority(name).appendPath(callId).build()) // Keep notification identities stable on redelivery.
+                .putExtra(CALL_ID_EXTRA, callId), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE) // Other apps cannot rewrite the action payload.
+        val open = action(OPEN_CALL_ACTION) // Full-screen presentation never automatically answers.
+        val person = androidx.core.app.Person.Builder().setName(state.peerLabel).setKey(state.peerAccount).setImportant(true).build() // Android's call template displays the verified caller label.
+        val notification = NotificationCompat.Builder(context, CALLS_CHANNEL) // Use Android's native incoming-call template.
+            .setSmallIcon(R.drawable.ic_connect_notification)
+            .setContentTitle(state.peerLabel) // Show who is calling in the notification and lock-screen template.
+            .setContentText("Incoming secure $kind call")
+            .setStyle(NotificationCompat.CallStyle.forIncomingCall(person, action(DECLINE_CALL_ACTION), action(ANSWER_CALL_ACTION)).setIsVideo(kind == "video")) // Provide native Answer and Decline controls.
+            .setContentIntent(open)
+            .setFullScreenIntent(open, true) // Android presents the call screen when locked, or a heads-up call when unlocked.
+            .setPriority(NotificationCompat.PRIORITY_MAX) // Support heads-up presentation on older Android versions.
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // Caller identity is intentionally visible on the incoming-call lock screen.
+            .setOngoing(true) // FLAG_ONLY_ALERT_ONCE would stop an active FLAG_INSISTENT ringtone when the caller name updates.
+            .setTimeoutAfter(remaining) // Android stops the alert at invite expiry even if the application process is killed.
+            .build().apply { flags = flags or android.app.Notification.FLAG_INSISTENT } // Repeat the system ringtone until answer, decline, or timeout.
+        return runCatching { manager.notify(callId.hashCode(), notification); true }.getOrDefault(false) // Leave failed deliveries unacknowledged for retry.
     }
 
     fun cancelIncomingCall(context: Context, callId: String) {
@@ -295,6 +334,11 @@ object ConnectNotifications {
         alertSubject: String = "",
         foldId: String = "",
     ): Boolean {
+        val manager = NotificationManagerCompat.from(context)
+        if (!manager.areNotificationsEnabled()) return false
+        if (context.getSystemService(NotificationManager::class.java)
+            .getNotificationChannel(channel)?.importance == NotificationManager.IMPORTANCE_NONE
+        ) return false
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
@@ -344,11 +388,21 @@ class NotificationSyncWorker(
     context: Context,
     params: androidx.work.WorkerParameters,
 ) : CoroutineWorker(context, params) {
+    companion object {
+        private val syncLock = kotlinx.coroutines.sync.Mutex()
+    }
+
     override suspend fun doWork(): Result {
+        syncLock.lock()
+        return try { sync() } finally { syncLock.unlock() }
+    }
+
+    private suspend fun sync(): Result {
         val store = Store(applicationContext)
         val enrollment = store.load() ?: return Result.success()
         return try {
             val client = SessionManager.client(applicationContext, enrollment)
+            var alertsDelivered = NotificationManagerCompat.from(applicationContext).areNotificationsEnabled()
 
             val conversations = client.wireConversations().optJSONArray("conversations") ?: JSONArray()
             val incoming = (0 until conversations.length()).map { conversations.getJSONObject(it) }
@@ -371,6 +425,7 @@ class NotificationSyncWorker(
                     )
                 }
                 store.retryNotificationIds("invite", failedInvites.map { it.getString("account_id") })
+                alertsDelivered = alertsDelivered && failedInvites.isEmpty()
             }
 
             val inbox = client.wireInbox().optJSONArray("messages") ?: JSONArray()
@@ -387,15 +442,13 @@ class NotificationSyncWorker(
                 .associateBy { it.id }.values.sortedBy { it.sent }
                 .filterNot { it.id in deletedIds }
             store.saveDirectMessages(allMessages)
-            val freshMessageIds = store.newNotificationIds("message", verified.messages.map { it.id })
-            val failedMessages = verified.messages.filter { it.id in freshMessageIds }
-                .filterNot { ConnectNotifications.postMessage(applicationContext, it) }
-            store.retryNotificationIds("message", failedMessages.map { it.id })
+            store.queueMessageNotifications(verified.messages)
+            alertsDelivered = ConnectNotifications.deliverPendingMessages(applicationContext) && alertsDelivered
             client.wireAck(verified.verifiedIds)
+            if (inbox.length() == 500) ConnectNotifications.syncNow(applicationContext)
 
-            val alerts = client.notifications(null, 50).optJSONArray("notifications") ?: JSONArray()
-            val parsedAlerts = (0 until alerts.length()).map { index ->
-                val value = alerts.getJSONObject(index)
+            val alerts = notificationCatchup(store.notificationWatermark) { cursor -> client.notifications(cursor, 100) }
+            val parsedAlerts = alerts.map { value ->
                 Alert(
                     value.getString("id"), value.optString("kind"),
                     Author.of(value.getJSONObject("from")), value.optString("subject_id"),
@@ -413,8 +466,13 @@ class NotificationSyncWorker(
             val failedAlerts = unseenAlerts.filter { it.id in freshAlertIds }
                 .filterNot { ConnectNotifications.postAlert(applicationContext, it) }
             store.retryNotificationIds("alert", failedAlerts.map { it.id })
+            if (alertsDelivered && failedAlerts.isEmpty()) {
+                parsedAlerts.firstOrNull()?.let { store.notificationWatermark = it.id }
+                NexusNotifier.acknowledge(applicationContext, inputData.getString("relay_id"))
+            }
             Result.success()
         } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
             android.util.Log.w("NotificationSync", "notification sync failed; retrying", error)
             Result.retry()
         }

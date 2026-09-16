@@ -615,6 +615,10 @@ async fn stream_loop(mut sock: WebSocket, s: AppState, ip: String) {
         .unwrap()
         .insert(device_id.clone(), (account_id.clone(), generation, tx));
 
+    for frame in wire::pending_call_invites(&s, &account_id).await {
+        if sock.send(Message::Text(frame)).await.is_err() { break; }
+    }
+
     // Pump: outbound pushes + inbound pings until either side closes.
     loop {
         tokio::select! {
@@ -754,7 +758,10 @@ async fn notification_stream_loop(mut sock: WebSocket, s: AppState) {
     s.notification_streams
         .lock()
         .unwrap()
-        .insert(device_id.clone(), (account_id, generation, tx));
+        .insert(device_id.clone(), (account_id.clone(), generation, tx));
+    for frame in wire::pending_call_invites(&s, &account_id).await {
+        if sock.send(Message::Text(frame)).await.is_err() { break; }
+    }
     loop {
         tokio::select! {
             out = rx.recv() => match out {

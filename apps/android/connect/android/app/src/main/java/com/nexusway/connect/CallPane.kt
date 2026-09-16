@@ -65,7 +65,13 @@ import org.webrtc.VideoTrack
 
 @Composable
 fun CallPane(vm: ConnectViewModel) {
-    val call = vm.callState
+    val manager = CallSession.current ?: return // Reuse the service-owned call without exposing view-model internals.
+    CallPane(manager, vm::acceptCall) { vm.errorDialog = it } // Keep the main screen's existing permission-error handling.
+}
+
+@Composable
+fun CallPane(manager: SecureCallManager, onAccept: () -> Unit, onError: (String) -> Unit) { // Host the same controls in either activity.
+    val call = manager.state // Observe the process-owned call state.
     var accepting by remember { mutableStateOf(false) }
     var controlsVisible by remember(call.callId) { mutableStateOf(true) }
     val connectionWarning = call.status != "Secure call" || call.quality.startsWith("Unstable")
@@ -75,17 +81,17 @@ fun CallPane(vm: ConnectViewModel) {
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
-        if (accepting && grants.values.all { it }) vm.acceptCall()
-        else if (accepting) vm.errorDialog = "Microphone and camera permission are required for this call"
+        if (accepting && grants.values.all { it }) onAccept() // Capture starts only after permission is granted.
+        else if (accepting) onError("Microphone and camera permission are required for this call") // Let the host present the permission error.
         accepting = false
     }
-    BackHandler { vm.hangupCall() }
+    BackHandler { manager.hangup() } // Preserve explicit call-ending behavior on Back.
 
     Box(Modifier.fillMaxSize().background(Bg)) {
         HiveHoneycombBackground()
         if (call.kind == "video" && call.phase != CallPhase.INCOMING) {
             call.remoteVideo?.let {
-                VideoSurface(it, vm.callEglContext, mirror = false, overlay = false, Modifier.fillMaxSize())
+                VideoSurface(it, manager.eglContext, mirror = false, overlay = false, Modifier.fillMaxSize()) // Use the shared remote video context.
             }
             call.localVideo?.let {
                 Surface(
@@ -99,7 +105,7 @@ fun CallPane(vm: ConnectViewModel) {
                         .aspectRatio(3f / 4f)
                         .hivePanelDepth(active = true),
                 ) {
-                    VideoSurface(it, vm.callEglContext, mirror = true, overlay = true, Modifier.fillMaxSize())
+                        VideoSurface(it, manager.eglContext, mirror = true, overlay = true, Modifier.fillMaxSize()) // Use the shared local video context.
                 }
             }
         }
@@ -178,7 +184,7 @@ fun CallPane(vm: ConnectViewModel) {
                                 horizontalArrangement = Arrangement.spacedBy(28.dp),
                                 modifier = Modifier.align(Alignment.Center),
                             ) {
-                                CallAction(Icons.Outlined.CallEnd, "Decline", Danger, vm::rejectCall)
+                                CallAction(Icons.Outlined.CallEnd, "Decline", Danger, manager::reject) // Reject the verified incoming call.
                                 CallAction(Icons.Outlined.Call, "Accept", Accent2) {
                                     accepting = true
                                     permissionLauncher.launch(callPermissions(call.kind))
@@ -198,18 +204,18 @@ fun CallPane(vm: ConnectViewModel) {
                                         if (call.muted) Icons.Outlined.MicOff else Icons.Outlined.Mic,
                                         if (call.muted) "Unmute" else "Mute",
                                         PanelHi,
-                                        vm::toggleCallMute,
+                                        manager::toggleMute, // Toggle the shared microphone.
                                     )
                                     CallAction(
                                         if (call.speakerEnabled) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeOff,
                                         "Speaker",
                                         if (call.speakerEnabled) AccentSoft else PanelHi,
-                                        vm::toggleCallSpeaker,
+                                        manager::toggleSpeaker, // Toggle the shared speaker route.
                                     )
                                     if (call.kind == "video") {
-                                        CallAction(Icons.Outlined.Cameraswitch, "Switch", PanelHi, vm::switchCallCamera)
+                                        CallAction(Icons.Outlined.Cameraswitch, "Switch", PanelHi, manager::switchCamera) // Switch the active camera.
                                     } else {
-                                        CallAction(Icons.Outlined.CallEnd, "Hang up", Danger, vm::hangupCall)
+                                        CallAction(Icons.Outlined.CallEnd, "Hang up", Danger, manager::hangup) // End the voice call.
                                     }
                                 }
                                 if (call.kind == "video") {
@@ -221,9 +227,9 @@ fun CallPane(vm: ConnectViewModel) {
                                             if (call.cameraEnabled) Icons.Outlined.Videocam else Icons.Outlined.VideocamOff,
                                             "Camera",
                                             PanelHi,
-                                            vm::toggleCallCamera,
+                                            manager::toggleCamera, // Toggle the shared camera.
                                         )
-                                        CallAction(Icons.Outlined.CallEnd, "Hang up", Danger, vm::hangupCall)
+                                        CallAction(Icons.Outlined.CallEnd, "Hang up", Danger, manager::hangup) // End the video call.
                                     }
                                 }
                             }

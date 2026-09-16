@@ -163,6 +163,43 @@ async fn call_signaling_requires_an_accepted_unblocked_chat() {
 }
 
 #[tokio::test]
+async fn pending_calls_replay_without_resurrecting_cancelled_invites() {
+    let (base, handle, _dir) = spawn_server().await;
+    let (alice, _) = user(&base, "replay-alice").await;
+    let (bob, _) = user(&base, "replay-bob").await;
+    alice.follow_request("replay-bob").await.unwrap();
+    bob.follow_accept("replay-alice").await.unwrap();
+    alice.wire_request("replay-bob").await.unwrap();
+    bob.wire_respond("replay-alice", true).await.unwrap();
+    let call_id = "1234567890abcdef1234567890abcdef";
+    alice.wire_call_signal("replay-bob", call_id, "invite", "voice", "e30=", "signature")
+        .await.unwrap();
+    let mut stream = bob.stream().await.unwrap();
+    let invite = tokio::time::timeout(std::time::Duration::from_secs(5), stream.recv())
+        .await.unwrap().unwrap();
+    assert_eq!(invite["action"], "invite");
+    assert_eq!(invite["call_id"], call_id);
+    assert!(invite["expires_at"].as_i64().unwrap() > 0);
+
+    let token = bob.notification_token().await.unwrap();
+    let mut relay = bob.notification_stream(&token).await.unwrap();
+    let replay = tokio::time::timeout(std::time::Duration::from_secs(5), relay.recv())
+        .await.unwrap().unwrap();
+    assert_eq!(replay["action"], "invite");
+    alice.wire_call_signal("replay-bob", call_id, "hangup", "voice", "e30=", "signature")
+        .await.unwrap();
+    alice.wire_call_signal("replay-bob", call_id, "invite", "voice", "e30=", "signature")
+        .await.unwrap();
+    let mut reconnected = bob.notification_stream(&token).await.unwrap();
+    alice.wire_call_signal("replay-bob", call_id, "heartbeat", "voice", "e30=", "signature")
+        .await.unwrap();
+    let next = tokio::time::timeout(std::time::Duration::from_secs(5), reconnected.recv())
+        .await.unwrap().unwrap();
+    assert_eq!(next["action"], "heartbeat", "cancelled invite must not replay");
+    handle.shutdown();
+}
+
+#[tokio::test]
 async fn befriend_post_comment_react_block_flow() {
     let (base, handle, _dir) = spawn_server().await;
     let (alice, alice_id) = user(&base, "alice").await;

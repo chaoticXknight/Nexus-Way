@@ -1,12 +1,12 @@
 {
-  "version": "0.2.50",
+  "version": "0.2.51",
   "severity": "normal",
-  "title": "Messaging and Fold Activity",
+  "title": "Reliable Calls and Notifications",
   "notes": [
-    "Long-press conversations to select and delete multiple synchronized conversation histories at once.",
-    "Fixes Fold likes and encrypted comments, including honest comment error handling that preserves unsent drafts.",
-    "Supports tagging canonical handles that contain spaces, including quoted mentions when needed.",
-    "Fold post, comment, reaction, invitation, and join notifications now open the relevant Fold activity.",
-    "Nexus Notify now updates automatically alongside Connect and restarts its notification relay after replacement."
+    "Improves call continuity when Connect is backgrounded or the phone is locked, and fixes audio-route crashes when answering or ending calls.",
+    "Incoming calls show caller identity with native Answer and Decline controls, a repeating ringtone, and full-screen handling when locked.",
+    "Unlocked incoming calls use the heads-up alert without automatically replacing your current Connect page.",
+    "Adds notification, full-screen call, and background-access settings links.",
+    "Improves pending-call replay and message notification recovery with Nexus Notify."
   ]
 }

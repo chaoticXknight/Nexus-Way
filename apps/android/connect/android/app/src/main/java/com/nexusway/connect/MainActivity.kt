@@ -197,6 +197,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        restoreFallbackCall(intent)
         ConnectNotifications.clearDelivered(this)
         notificationDestination = intent?.action?.takeIf {
             it == OPEN_ALERTS_ACTION || it == OPEN_MESSAGES_ACTION ||
@@ -245,6 +246,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        restoreFallbackCall(intent)
         ConnectNotifications.clearDelivered(this)
         setIntent(intent)
         notificationDestination = intent.action?.takeIf {
@@ -261,6 +263,14 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         NexusNotifier.ensureRunning(this)
         ConnectNotifications.clearDelivered(this)
+    }
+
+    private fun restoreFallbackCall(intent: Intent?) {
+        if (intent?.action != OPEN_CALL_ACTION) return
+        if (intent.getLongExtra("call_expires_at", 0L) <= System.currentTimeMillis() / 1_000) return
+        val frame = intent.getStringExtra("call_frame")
+            ?.let { runCatching { org.json.JSONObject(it) }.getOrNull() } ?: return
+        CallSession.receive(frame)
     }
 }
 
@@ -866,6 +876,7 @@ fun MainScaffold(
     var tab by remember { mutableIntStateOf(0) }
     var tabBackStack by remember { mutableStateOf(listOf<Int>()) }
     var composerOpen by remember { mutableStateOf(false) }
+    var explicitlyOpenedCallId by remember { mutableStateOf<String?>(null) } // A user-tapped fallback alert may open its call, unlike an unsolicited incoming invite.
     fun selectTab(next: Int) {
         if (next == tab) return
         tabBackStack = (tabBackStack + tab).takeLast(12)
@@ -893,6 +904,7 @@ fun MainScaffold(
             )
             OPEN_CALL_ACTION -> {
                 vm.dmOpen = false
+                explicitlyOpenedCallId = notificationCallId // Preserve explicit navigation from Notify's fallback notification.
                 vm.restorePendingCall(notificationCallId)
             }
         }
@@ -915,7 +927,8 @@ fun MainScaffold(
         return
     }
 
-    if (vm.callState.phase != CallPhase.IDLE) {
+    if (vm.callState.phase == CallPhase.CONNECTING || vm.callState.phase == CallPhase.ACTIVE || // Answered and outgoing calls still show their controls.
+        (vm.callState.phase == CallPhase.INCOMING && vm.callState.callId == explicitlyOpenedCallId)) { // An incoming call takes over only after an explicit notification tap.
         CallPane(vm)
         return
     }

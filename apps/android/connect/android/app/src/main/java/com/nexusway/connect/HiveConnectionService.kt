@@ -18,5 +18,11 @@ object HiveStreamEvents {
     )
     val frames = pendingFrames.receiveAsFlow()
 
-    fun tryEmit(frame: JSONObject): Boolean = pendingFrames.trySend(frame).isSuccess
+    fun tryEmit(frame: JSONObject): Boolean {
+        if (frame.optString("type") == "call_signal") {
+            CallSession.receive(frame)
+            return true
+        }
+        return pendingFrames.trySend(frame).isSuccess
+    }
 }
