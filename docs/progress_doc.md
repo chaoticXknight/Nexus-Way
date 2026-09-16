@@ -13,6 +13,15 @@
 - [ ] Deploy HIVE with migration 0025 and publish both production APKs plus release
       notes. SSH key login succeeded and HIVE is active, but non-interactive sudo
       requires interactive authentication. No live server files were changed.
+- [x] Stage production artifacts from source commit e370cd5 in the server account's
+      private `nexus-release-0.2.51-e370cd5/` directory, with SHA-256 verification
+      passing locally and remotely. The ignored local staging directory is
+      `apps/android/connect/android/build/production-0.2.51/`. Its deployment
+      script passed local/remote shell syntax validation; remote TOML parsing
+      and deployment locking tools are available. The script backs up the server,
+      database, APKs, and notes, checks migration 0025 and anonymous access gates,
+      and attempts coordinated rollback on failure. Operator execution through
+      interactive sudo is still required; staging did not alter the live release.
 - [ ] After deployment, verify migration 0025, service health, published artifact
       hashes, release metadata, and authenticated download/version endpoints.
 
